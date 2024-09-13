@@ -91,7 +91,7 @@ def save_to_pdf_file():
 def generate_frames():
     global predicted_character, confirmed_letter, letter_to_add, frame_count, last_sign_time
 
-    cap = cv2.VideoCapture(1)
+    cap = cv2.VideoCapture(0)
     
     while True:
         data_aux = []
