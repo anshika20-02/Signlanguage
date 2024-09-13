@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign Language Recognition</title>
+    <style>
+        /* Styling for buttons and layout */
+        .container {
+            text-align: center;
+            margin-top: 20px;
+        }
+        .button {
+            display: inline-block;
+            margin: 10px;
+            padding: 10px 20px;
+            font-size: 16px;
+            color: white;
+            background-color: #007BFF;
+            border: none;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+        .button:hover {
+            background-color: #0056b3;
+        }
+        #videoFeed {
+            border: 1px solid black;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Sign Language Recognition System</h1>
+        <!-- Video feed from the webcam -->
+        <img id="videoFeed" src="{{ url_for('video_feed') }}" alt="Video Feed">
+
+        <!-- Buttons for various actions -->
+        <div>
+            <button class="button" onclick="clearSentence()">Clear Sentence</button>
+            <button class="button" onclick="saveText()">Save Text</button>
+            <button class="button" onclick="savePDF()">Save PDF</button>
+            <button class="button" onclick="speakSentence()">Speak Sentence</button>
+        </div>
+    </div>
+
+    <!-- JavaScript to handle button actions -->
+    <script>
+        function clearSentence() {
+            fetch('/clear_sentence', {
+                method: 'POST'
+            }).then(response => response.json()).then(data => {
+                if (data.success) {
+                    alert('Sentence cleared successfully!');
+                }
+            }).catch(error => console.error('Error:', error));
+        }
+
+        function saveText() {
+            fetch('/save_text', {
+                method: 'POST'
+            }).then(response => response.json()).then(data => {
+                if (data.success) {
+                    alert('Text saved successfully!');
+                }
+            }).catch(error => console.error('Error:', error));
+        }
+
+        function savePDF() {
+            fetch('/save_pdf', {
+                method: 'POST'
+            }).then(response => response.json()).then(data => {
+                if (data.success) {
+                    alert('PDF saved successfully!');
+                }
+            }).catch(error => console.error('Error:', error));
+        }
+
+        function speakSentence() {
+            fetch('/speak', {
+                method: 'POST'
+            }).then(response => response.json()).then(data => {
+                if (data.success) {
+                   
+                }
+            }).catch(error => console.error('Error:', error));
+        }
+    </script>
+</body>
+</html>
