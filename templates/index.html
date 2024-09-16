@@ -38,7 +38,7 @@
 <body>
     <div class="container">
         <h1>Sign Language Recognition System</h1>
-        <!-- Video feed from the user's webcam -->
+        <!-- Video element to display webcam feed -->
         <video id="videoElement" autoplay playsinline></video>
 
         <!-- Buttons for various actions -->
@@ -50,9 +50,7 @@
         </div>
     </div>
 
-    <!-- JavaScript to handle video and button actions -->
     <script>
-        // Access the video element
         const video = document.getElementById('videoElement');
 
         // Request access to the user's camera
@@ -65,81 +63,76 @@
             });
 
         function clearSentence() {
-            fetch('/clear_sentence', {
-                method: 'POST'
-            }).then(response => response.json()).then(data => {
-                if (data.success) {
-                    alert('Sentence cleared successfully!');
-                }
-            }).catch(error => console.error('Error:', error));
+            fetch('/clear_sentence', { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('Sentence cleared successfully!');
+                    }
+                })
+                .catch(error => console.error('Error:', error));
         }
 
         function saveText() {
-            fetch('/save_text', {
-                method: 'POST'
-            }).then(response => response.json()).then(data => {
-                if (data.success) {
-                    alert('Text saved successfully!');
-                }
-            }).catch(error => console.error('Error:', error));
+            fetch('/save_text', { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('Text saved successfully!');
+                    }
+                })
+                .catch(error => console.error('Error:', error));
         }
 
         function savePDF() {
-            fetch('/save_pdf', {
-                method: 'POST'
-            }).then(response => response.json()).then(data => {
-                if (data.success) {
-                    alert('PDF saved successfully!');
-                }
-            }).catch(error => console.error('Error:', error));
+            fetch('/save_pdf', { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('PDF saved successfully!');
+                    }
+                })
+                .catch(error => console.error('Error:', error));
         }
 
         function speakSentence() {
-            fetch('/speak', {
-                method: 'POST'
-            }).then(response => response.json()).then(data => {
-                if (data.success) {
-                    // Use the SpeechSynthesis API to speak the sentence on the client side
-                    const utterance = new SpeechSynthesisUtterance(data.sentence);
-                    speechSynthesis.speak(utterance);
-                }
-            }).catch(error => console.error('Error:', error));
+            fetch('/speak', { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Use the Web Speech API to speak the sentence on the client side
+                        const utterance = new SpeechSynthesisUtterance(data.sentence);
+                        speechSynthesis.speak(utterance);
+                    }
+                })
+                .catch(error => console.error('Error:', error));
         }
 
-        // Function to capture frames and send them to the server
         function captureAndSendFrame() {
-            // Create a canvas to capture the video frame
             const canvas = document.createElement('canvas');
             canvas.width = video.videoWidth || 640;
             canvas.height = video.videoHeight || 480;
             const context = canvas.getContext('2d');
             context.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-            // Convert the frame to a data URL
             const dataURL = canvas.toDataURL('image/jpeg');
 
-            // Send the frame to the server
             fetch('/process_frame', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ image: dataURL })
             })
             .then(response => response.json())
             .then(data => {
-                // Handle the response, e.g., update predicted letter, word, and sentence
+                // Handle the response from the server
                 if (data.success) {
-                    // Display the predicted letter, word, and sentence
-                    // You can create elements in HTML to show these values
+                    // Update UI with predicted results
                 }
             })
             .catch(error => console.error('Error:', error));
         }
 
-        // Capture and send frames at regular intervals (e.g., every 100ms)
         setInterval(captureAndSendFrame, 100);
-
     </script>
 </body>
 </html>

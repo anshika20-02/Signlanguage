@@ -216,9 +216,9 @@ def save_pdf():
 
 @app.route('/speak', methods=['POST'])
 def speak():
-    tts_thread = threading.Thread(target=speak_sentence)
-    tts_thread.start()
-    return jsonify(success=True)
+    sentence = get_sentence()  # Get the current sentence
+    return jsonify(success=True, sentence=sentence)
+
 
 def speak_sentence():
     local_engine = initialize_tts_engine()
