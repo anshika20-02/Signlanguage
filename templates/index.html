@@ -2,8 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <!-- Updated favicon link to use url_for -->
-    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
+    {% comment %} <link rel="icon" href="/favicon.ico" type="image/x-icon"> {% endcomment %}
 
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sign Language Recognition</title>
@@ -27,19 +26,17 @@
         .button:hover {
             background-color: #0056b3;
         }
-        #videoElement {
+        #videoFeed {
             border: 1px solid black;
             margin-top: 20px;
-            width: 640px;
-            height: 480px;
         }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>Sign Language Recognition System</h1>
-        <!-- Video element to display webcam feed -->
-        <video id="videoElement" autoplay playsinline></video>
+        <!-- Video feed from the webcam -->
+        <img id="videoFeed" src="{{ url_for('video_feed') }}" alt="Video Feed">
 
         <!-- Buttons for various actions -->
         <div>
@@ -50,89 +47,47 @@
         </div>
     </div>
 
+    <!-- JavaScript to handle button actions -->
     <script>
-        const video = document.getElementById('videoElement');
-
-        // Request access to the user's camera
-        navigator.mediaDevices.getUserMedia({ video: true })
-            .then(stream => {
-                video.srcObject = stream;
-            })
-            .catch(err => {
-                console.error("Error accessing the camera: ", err);
-            });
-
         function clearSentence() {
-            fetch('/clear_sentence', { method: 'POST' })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        alert('Sentence cleared successfully!');
-                    }
-                })
-                .catch(error => console.error('Error:', error));
+            fetch('/clear_sentence', {
+                method: 'POST'
+            }).then(response => response.json()).then(data => {
+                if (data.success) {
+                    alert('Sentence cleared successfully!');
+                }
+            }).catch(error => console.error('Error:', error));
         }
 
         function saveText() {
-            fetch('/save_text', { method: 'POST' })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        alert('Text saved successfully!');
-                    }
-                })
-                .catch(error => console.error('Error:', error));
+            fetch('/save_text', {
+                method: 'POST'
+            }).then(response => response.json()).then(data => {
+                if (data.success) {
+                    alert('Text saved successfully!');
+                }
+            }).catch(error => console.error('Error:', error));
         }
 
         function savePDF() {
-            fetch('/save_pdf', { method: 'POST' })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        alert('PDF saved successfully!');
-                    }
-                })
-                .catch(error => console.error('Error:', error));
+            fetch('/save_pdf', {
+                method: 'POST'
+            }).then(response => response.json()).then(data => {
+                if (data.success) {
+                    alert('PDF saved successfully!');
+                }
+            }).catch(error => console.error('Error:', error));
         }
 
         function speakSentence() {
-            fetch('/speak', { method: 'POST' })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        // Use the Web Speech API to speak the sentence on the client side
-                        const utterance = new SpeechSynthesisUtterance(data.sentence);
-                        speechSynthesis.speak(utterance);
-                    }
-                })
-                .catch(error => console.error('Error:', error));
-        }
-
-        function captureAndSendFrame() {
-            const canvas = document.createElement('canvas');
-            canvas.width = video.videoWidth || 640;
-            canvas.height = video.videoHeight || 480;
-            const context = canvas.getContext('2d');
-            context.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-            const dataURL = canvas.toDataURL('image/jpeg');
-
-            fetch('/process_frame', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ image: dataURL })
-            })
-            .then(response => response.json())
-            .then(data => {
-                // Handle the response from the server
+            fetch('/speak', {
+                method: 'POST'
+            }).then(response => response.json()).then(data => {
                 if (data.success) {
-                    // Update UI with predicted results
+                   
                 }
-            })
-            .catch(error => console.error('Error:', error));
+            }).catch(error => console.error('Error:', error));
         }
-
-        setInterval(captureAndSendFrame, 100);
     </script>
 </body>
 </html>

@@ -1,4 +1,4 @@
-from flask import Flask, render_template, Response, request, jsonify, send_from_directory
+from flask import Flask, render_template, Response, request, jsonify
 import threading
 import pickle
 import cv2
@@ -11,29 +11,29 @@ import os
 
 app = Flask(__name__)
 
-# Favicon route to prevent 404 errors
-@app.route('/favicon.ico')
-def favicon():
-    return send_from_directory(os.path.join(app.root_path, 'static'), 'favicon.ico')
+# Logging for debug purposes
+import logging
+logging.basicConfig(level=logging.DEBUG)
 
 # Function to initialize and configure the TTS engine
 def initialize_tts_engine():
     tts_engine = pyttsx3.init()
-    # Select Indian English voice
     voices = tts_engine.getProperty('voices')
     for voice in voices:
-        if 'India' in voice.name or 'Indian' in voice.name or 'English (India)' in voice.name:
+        if 'India' in voice.name or 'Indian' in voice.name:
             tts_engine.setProperty('voice', voice.id)
-            print(f"Selected voice: {voice.name}")
+            logging.debug(f"Selected voice: {voice.name}")
             break
     return tts_engine
 
-# Loading the Pre-trained Model with error handling
+# Loading the Pre-trained Model
+MODEL_PATH = os.path.join(os.path.dirname(__file__), 'model.p')
 try:
-    model_dict = pickle.load(open('./model.p', 'rb'))
+    model_dict = pickle.load(open(MODEL_PATH, 'rb'))
     model = model_dict['model']
-except FileNotFoundError:
-    print("Model file not found. Please check the path to 'model.p'.")
+    logging.info("Model loaded successfully.")
+except Exception as e:
+    logging.error(f"Error loading the model: {e}")
     model = None
 
 # Initialize MediaPipe
@@ -42,9 +42,10 @@ mp_drawing = mp.solutions.drawing_utils
 mp_drawing_styles = mp.solutions.drawing_styles
 hands = mp_hands.Hands(static_image_mode=True, min_detection_confidence=0.3)
 
+# Labels for letters (A-Z)
 labels_dict = {i: chr(65 + i) for i in range(26)}
 
-# Initialize global variables
+# Global variables for sign recognition
 predicted_letters = []
 current_word = []
 letter_to_add = None
@@ -70,9 +71,8 @@ def clear_word():
     current_word = []
 
 def clear_sentence():
-    global predicted_letters
+    global predicted_letters, current_word
     predicted_letters = []
-    global current_word
     current_word = []
 
 def get_word():
@@ -103,29 +103,34 @@ def generate_frames():
 
     cap = cv2.VideoCapture(0)
     
-    while True:
-        data_aux = []
+    if not cap.isOpened():
+        logging.error("Video capture failed, check if camera is available on the server.")
+        return  # Exit if camera access is not available
 
+    while cap.isOpened():
         ret, frame = cap.read()
         if not ret:
+            logging.error("Failed to capture video frame.")
             break
 
-        H, W, _ = frame.shape
+        # Processing the frame
         frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-
         results = hands.process(frame_rgb)
+        
         if results.multi_hand_landmarks:
             for hand_landmarks in results.multi_hand_landmarks:
                 mp_drawing.draw_landmarks(
-                    frame,
-                    hand_landmarks,
+                    frame, 
+                    hand_landmarks, 
                     mp_hands.HAND_CONNECTIONS,
                     mp_drawing_styles.get_default_hand_landmarks_style(),
                     mp_drawing_styles.get_default_hand_connections_style()
                 )
 
+            # Extract hand landmarks for prediction
             x_ = []
             y_ = []
+            data_aux = []
 
             for hand_landmarks in results.multi_hand_landmarks:
                 for i in range(len(hand_landmarks.landmark)):
@@ -144,30 +149,33 @@ def generate_frames():
 
             data_aux = data_aux[:42]
 
-            if model:  # Ensure model is loaded
+            if model:
                 prediction = model.predict([np.asarray(data_aux)])
                 predicted_character = labels_dict[int(prediction[0])]
+            else:
+                logging.error("Model not loaded properly, skipping prediction.")
 
-                if letter_to_add == predicted_character:
-                    frame_count += 1
+            # Logic to handle repeated frames for consistency
+            if letter_to_add == predicted_character:
+                frame_count += 1
+            else:
+                letter_to_add = predicted_character
+                frame_count = 1
+
+            if frame_count >= frames_for_sign:
+                confirmed_letter = predicted_character
+                letter_to_add = None
+                frame_count = 0
+                last_sign_time = time.time()
+
+                if confirmed_letter == '<CLR>':
+                    clear_all()
+                elif confirmed_letter == ' ':
+                    add_word_to_sentence()
+                    clear_word()
                 else:
-                    letter_to_add = predicted_character
-                    frame_count = 1
-
-                if frame_count >= frames_for_sign:
-                    confirmed_letter = predicted_character
-                    letter_to_add = None
-                    frame_count = 0
-                    last_sign_time = time.time()
-
-                    if confirmed_letter == '<CLR>':
-                        clear_all()
-                    elif confirmed_letter == ' ':
-                        add_word_to_sentence()
-                        clear_word()
-                    else:
-                        add_letter_to_word(confirmed_letter)
-                    confirmed_letter = None
+                    add_letter_to_word(confirmed_letter)
+                confirmed_letter = None
 
         else:
             if time.time() - last_sign_time > sign_timeout:
@@ -176,17 +184,16 @@ def generate_frames():
 
             predicted_character = ' '
 
-        sentence = get_sentence()
-        word = get_word()
-        cv2.putText(frame, f"Predicted Letter: {predicted_character}", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1.3, (0, 0, 255), 3, cv2.LINE_AA)
-        cv2.putText(frame, f"Word: {word}", (50, 100), cv2.FONT_HERSHEY_SIMPLEX, 1.3, (0, 255, 0), 3, cv2.LINE_AA)
-        cv2.putText(frame, f"Sentence: {get_sentence()}", (50, 150), cv2.FONT_HERSHEY_SIMPLEX, 1.3, (255, 0, 0), 3, cv2.LINE_AA)
+        # Display the predicted letter, word, and sentence on the frame
+        cv2.putText(frame, f"Predicted Letter: {predicted_character}", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1.3, (0, 0, 255), 3)
+        cv2.putText(frame, f"Word: {get_word()}", (50, 100), cv2.FONT_HERSHEY_SIMPLEX, 1.3, (0, 255, 0), 3)
+        cv2.putText(frame, f"Sentence: {get_sentence()}", (50, 150), cv2.FONT_HERSHEY_SIMPLEX, 1.3, (255, 0, 0), 3)
 
+        # Encode and yield the frame
         ret, buffer = cv2.imencode('.jpg', frame)
         frame = buffer.tobytes()
 
-        yield (b'--frame\r\n'
-               b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
+        yield (b'--frame\r\n' b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
 
     cap.release()
 
@@ -196,8 +203,7 @@ def index():
 
 @app.route('/video_feed')
 def video_feed():
-    return Response(generate_frames(),
-                    mimetype='multipart/x-mixed-replace; boundary=frame')
+    return Response(generate_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
 
 @app.route('/clear_sentence', methods=['POST'])
 def clear_sentence_route():
@@ -216,14 +222,14 @@ def save_pdf():
 
 @app.route('/speak', methods=['POST'])
 def speak():
-    sentence = get_sentence()  # Get the current sentence
-    return jsonify(success=True, sentence=sentence)
-
+    tts_thread = threading.Thread(target=speak_sentence)
+    tts_thread.start()
+    return jsonify(success=True)
 
 def speak_sentence():
     local_engine = initialize_tts_engine()
     sentence = get_sentence()
-    if sentence:
+    if sentence:  
         local_engine.say(sentence)
         local_engine.runAndWait()
     local_engine.stop()
