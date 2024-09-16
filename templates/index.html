@@ -2,7 +2,8 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <link rel="icon" href="/favicon.ico" type="image/x-icon">
+    <!-- Updated favicon link to use url_for -->
+    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
 
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sign Language Recognition</title>
@@ -26,17 +27,19 @@
         .button:hover {
             background-color: #0056b3;
         }
-        #videoFeed {
+        #videoElement {
             border: 1px solid black;
             margin-top: 20px;
+            width: 640px;
+            height: 480px;
         }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>Sign Language Recognition System</h1>
-        <!-- Video feed from the webcam -->
-        <img id="videoFeed" src="{{ url_for('video_feed') }}" alt="Video Feed">
+        <!-- Video feed from the user's webcam -->
+        <video id="videoElement" autoplay playsinline></video>
 
         <!-- Buttons for various actions -->
         <div>
@@ -47,8 +50,20 @@
         </div>
     </div>
 
-    <!-- JavaScript to handle button actions -->
+    <!-- JavaScript to handle video and button actions -->
     <script>
+        // Access the video element
+        const video = document.getElementById('videoElement');
+
+        // Request access to the user's camera
+        navigator.mediaDevices.getUserMedia({ video: true })
+            .then(stream => {
+                video.srcObject = stream;
+            })
+            .catch(err => {
+                console.error("Error accessing the camera: ", err);
+            });
+
         function clearSentence() {
             fetch('/clear_sentence', {
                 method: 'POST'
@@ -84,10 +99,47 @@
                 method: 'POST'
             }).then(response => response.json()).then(data => {
                 if (data.success) {
-                   
+                    // Use the SpeechSynthesis API to speak the sentence on the client side
+                    const utterance = new SpeechSynthesisUtterance(data.sentence);
+                    speechSynthesis.speak(utterance);
                 }
             }).catch(error => console.error('Error:', error));
         }
+
+        // Function to capture frames and send them to the server
+        function captureAndSendFrame() {
+            // Create a canvas to capture the video frame
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth || 640;
+            canvas.height = video.videoHeight || 480;
+            const context = canvas.getContext('2d');
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            // Convert the frame to a data URL
+            const dataURL = canvas.toDataURL('image/jpeg');
+
+            // Send the frame to the server
+            fetch('/process_frame', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ image: dataURL })
+            })
+            .then(response => response.json())
+            .then(data => {
+                // Handle the response, e.g., update predicted letter, word, and sentence
+                if (data.success) {
+                    // Display the predicted letter, word, and sentence
+                    // You can create elements in HTML to show these values
+                }
+            })
+            .catch(error => console.error('Error:', error));
+        }
+
+        // Capture and send frames at regular intervals (e.g., every 100ms)
+        setInterval(captureAndSendFrame, 100);
+
     </script>
 </body>
 </html>

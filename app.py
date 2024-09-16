@@ -1,4 +1,4 @@
-from flask import Flask, render_template, Response, request, jsonify
+from flask import Flask, render_template, Response, request, jsonify, send_from_directory
 import threading
 import pickle
 import cv2
@@ -7,8 +7,14 @@ import numpy as np
 import time
 from fpdf import FPDF
 import pyttsx3
+import os
 
 app = Flask(__name__)
+
+# Favicon route to prevent 404 errors
+@app.route('/favicon.ico')
+def favicon():
+    return send_from_directory(os.path.join(app.root_path, 'static'), 'favicon.ico')
 
 # Function to initialize and configure the TTS engine
 def initialize_tts_engine():
@@ -22,9 +28,13 @@ def initialize_tts_engine():
             break
     return tts_engine
 
-# Loading the Pre-trained Model
-model_dict = pickle.load(open('./model.p', 'rb'))
-model = model_dict['model']
+# Loading the Pre-trained Model with error handling
+try:
+    model_dict = pickle.load(open('./model.p', 'rb'))
+    model = model_dict['model']
+except FileNotFoundError:
+    print("Model file not found. Please check the path to 'model.p'.")
+    model = None
 
 # Initialize MediaPipe
 mp_hands = mp.solutions.hands
@@ -134,29 +144,30 @@ def generate_frames():
 
             data_aux = data_aux[:42]
 
-            prediction = model.predict([np.asarray(data_aux)])
-            predicted_character = labels_dict[int(prediction[0])]
+            if model:  # Ensure model is loaded
+                prediction = model.predict([np.asarray(data_aux)])
+                predicted_character = labels_dict[int(prediction[0])]
 
-            if letter_to_add == predicted_character:
-                frame_count += 1
-            else:
-                letter_to_add = predicted_character
-                frame_count = 1
-
-            if frame_count >= frames_for_sign:
-                confirmed_letter = predicted_character
-                letter_to_add = None
-                frame_count = 0
-                last_sign_time = time.time()
-
-                if confirmed_letter == '<CLR>':
-                    clear_all()
-                elif confirmed_letter == ' ':
-                    add_word_to_sentence()
-                    clear_word()
+                if letter_to_add == predicted_character:
+                    frame_count += 1
                 else:
-                    add_letter_to_word(confirmed_letter)
-                confirmed_letter = None
+                    letter_to_add = predicted_character
+                    frame_count = 1
+
+                if frame_count >= frames_for_sign:
+                    confirmed_letter = predicted_character
+                    letter_to_add = None
+                    frame_count = 0
+                    last_sign_time = time.time()
+
+                    if confirmed_letter == '<CLR>':
+                        clear_all()
+                    elif confirmed_letter == ' ':
+                        add_word_to_sentence()
+                        clear_word()
+                    else:
+                        add_letter_to_word(confirmed_letter)
+                    confirmed_letter = None
 
         else:
             if time.time() - last_sign_time > sign_timeout:
@@ -205,19 +216,16 @@ def save_pdf():
 
 @app.route('/speak', methods=['POST'])
 def speak():
-    # Start a new thread for the text-to-speech task
     tts_thread = threading.Thread(target=speak_sentence)
     tts_thread.start()
     return jsonify(success=True)
 
 def speak_sentence():
-    # Create a new instance of the TTS engine in this thread
     local_engine = initialize_tts_engine()
     sentence = get_sentence()
-    if sentence:  # Ensure there's something to speak
+    if sentence:
         local_engine.say(sentence)
         local_engine.runAndWait()
-    # Properly shutdown the engine after speaking
     local_engine.stop()
 
 if __name__ == '__main__':
