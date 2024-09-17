@@ -15,6 +15,8 @@ app = Flask(__name__)
 import logging
 logging.basicConfig(level=logging.DEBUG)
 
+
+
 # Function to initialize and configure the TTS engine
 def initialize_tts_engine():
     tts_engine = pyttsx3.init()

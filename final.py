@@ -6,6 +6,7 @@ import numpy as np
 import time
 from fpdf import FPDF
 import pyttsx3  # Import pyttsx3 for text-to-speech
+import winsound  # For beep sound (Windows-specific)
 
 # Initialize the text-to-speech engine
 engine = pyttsx3.init()
@@ -45,15 +46,22 @@ sign_timeout = 2
 confirmed_letter = None
 predicted_character = ' '
 
+# Track the session start time
+start_time = time.time()
+
 def add_letter_to_word(letter):
     global current_word
     current_word.append(letter)
+    # Add a beep sound to give auditory feedback when a letter is confirmed
+    winsound.Beep(1000, 200)  # Frequency 1000Hz, duration 200ms
 
 def add_word_to_sentence():
     global predicted_letters, current_word
     if current_word:
         predicted_letters.append(''.join(current_word))
         current_word = []
+        # Play a longer beep when a word is added
+        winsound.Beep(1500, 300)  # Frequency 1500Hz, duration 300ms
         speak_sentence()  # Speak the sentence whenever a new word is added
 
 def clear_word():
@@ -83,11 +91,24 @@ def save_to_text_file():
         file.write(get_sentence())
 
 def save_to_pdf_file():
+    total_time = time.time() - start_time  # Calculate total time
+    total_letters = sum(len(word) for word in predicted_letters)
+    total_words = len(predicted_letters)
+
     pdf = FPDF()
     pdf.add_page()
     pdf.set_font("Arial", size=12)
     pdf.multi_cell(0, 10, get_sentence())
-    pdf.output("predicted_text.pdf")
+
+    # Add analytics section in the PDF
+    pdf.ln(10)  # Line break
+    pdf.cell(200, 10, txt="Analytics Summary", ln=True, align='C')
+    pdf.ln(5)  # Line break
+    pdf.cell(200, 10, txt=f"Total Letters Recognized: {total_letters}", ln=True)
+    pdf.cell(200, 10, txt=f"Total Words Formed: {total_words}", ln=True)
+    pdf.cell(200, 10, txt=f"Time Spent on Recognition: {total_time:.2f} seconds", ln=True)
+
+    pdf.output("predicted_text_with_analytics.pdf")
 
 def speak_sentence():
     sentence = get_sentence()
