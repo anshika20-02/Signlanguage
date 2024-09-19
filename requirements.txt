@@ -12,5 +12,5 @@ pandas
 matplotlib             
 Flask-Cors            
 
-tensorflow==2.14.0
+tensorflow==2.13.1
 gunicorn==23.0.0
