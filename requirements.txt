@@ -4,8 +4,7 @@ mediapipe
 numpy                  
 fpdf                     
 pyttsx3                               
-keras                 
-gunicorn                
+keras                             
 Pillow                
 scikit-learn             
 imutils                  
